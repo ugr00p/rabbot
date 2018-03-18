@@ -445,6 +445,7 @@ Broker.prototype.request = function (exchangeName, options = {}, notify, connect
   const requestId = uuid.v1();
   options.messageId = requestId;
   options.connectionName = options.connectionName || connectionName;
+  options.correlationId = requestId;
 
   if (!this.connections[ options.connectionName ]) {
     return Promise.reject(new Error(`Request failed - no connection ${options.connectionName} has been configured`));
@@ -467,13 +468,20 @@ Broker.prototype.request = function (exchangeName, options = {}, notify, connect
           const end = scatter
             ? --remaining <= 0
             : message.properties.headers[ 'sequence_end' ];
+          const isFault = message.properties.headers['IsFaulted'];
+          const ErrorMsg = message.properties.headers['ExceptionMessage'];
           if (end) {
             clearTimeout(timeout);
             if (!scatter || remaining === 0) {
               resolve(message);
             }
             subscription.unsubscribe();
-          } else if (notify) {
+          } else if (isFault && ErrorMsg) {
+            clearTimeout(timeout);
+            reject(new Error(ErrorMsg));
+            subscription.unsubscribe();
+          }
+          else if (notify) {
             notify(message);
           }
         });
