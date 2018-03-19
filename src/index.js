@@ -469,16 +469,16 @@ Broker.prototype.request = function (exchangeName, options = {}, notify, connect
             ? --remaining <= 0
             : message.properties.headers[ 'sequence_end' ];
           const isFault = message.properties.headers['IsFaulted'];
-          const ErrorMsg = message.properties.headers['ExceptionMessage'];
           if (end) {
             clearTimeout(timeout);
             if (!scatter || remaining === 0) {
               resolve(message);
             }
             subscription.unsubscribe();
-          } else if (isFault && ErrorMsg) {
+          } else if (isFault) {
             clearTimeout(timeout);
-            reject(new Error(ErrorMsg));
+            reject(message);
+            message.reject();
             subscription.unsubscribe();
           }
           else if (notify) {
