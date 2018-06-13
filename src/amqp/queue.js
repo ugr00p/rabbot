@@ -359,6 +359,10 @@ function subscribe (channelName, channel, topology, serializers, messages, optio
     }
     var topic = parts.join('.');
     var contentType = raw.properties.contentType || 'application/octet-stream';
+    if (contentType === 'application/vnd.masstransit+json') {
+      contentType = 'application/json';
+    }
+
     var serializer = serializers[ contentType ];
     const track = () => {
       if (shouldAck && shouldBatch) {
@@ -412,7 +416,6 @@ function subscribe (channelName, channel, topology, serializers, messages, optio
         topology.onUnhandled(raw);
       }
     };
-
     if (raw.fields.routingKey === topology.replyQueue.name) {
       responses.publish(
         {

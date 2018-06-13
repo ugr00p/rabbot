@@ -6,6 +6,7 @@ const uuid = require('uuid');
 const dispatch = postal.channel('rabbit.dispatch');
 const responses = postal.channel('rabbit.responses');
 const signal = postal.channel('rabbit.ack');
+const messageEnvelop = require('./messageEnvelope');
 const log = require('./log');
 
 const DEFAULT = 'default';
@@ -414,6 +415,13 @@ Broker.prototype.publish = function (exchangeName, type, message, routingKey, co
   }
   if (typeof options.body === 'number') {
     options.body = options.body.toString();
+  }
+  if (options.message) {
+    const connection = this.connections[ connectionName ].options;
+    const fromAddress = `rabbitmq://${connection.host}/${connection.replyQueue.consumerTag}`;
+    const toAddress = `rabbitmq://${connection.host}/${exchangeName}`;
+    const responseAddress = `rabbitmq://${connection.host}/${options.responseExchange}`;
+    options.body = messageEnvelop(options.correlationId, fromAddress, responseAddress, toAddress,  options.message);
   }
 
   return this.onExchange(exchangeName, connectionName)
