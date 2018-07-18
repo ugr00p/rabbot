@@ -436,6 +436,8 @@ Broker.prototype.publish = function (exchangeName, type, message, routingKey, co
 
     options.body = messageEnvelop({
       uniqueId: options.correlationId,
+      requestId: options.messageId,
+      conversationId: options.correlationId,
       fromAddress,
       toAddress,
       responseAddress,
