@@ -417,11 +417,31 @@ Broker.prototype.publish = function (exchangeName, type, message, routingKey, co
     options.body = options.body.toString();
   }
   if (options.message) {
+    if (options.message.body && !options.message.body.correlationId) {
+      options.message.body.correlationId = options.correlationId;
+    }
+    if (options.message.body && !options.message.body.timeStamp) {
+      var ts = new Date();
+      options.message.body.timeStamp = ts.toISOString();
+    }
     const connection = this.connections[ connectionName ].options;
     const fromAddress = `rabbitmq://${connection.host}/${connection.replyQueue.consumerTag}`;
     const toAddress = `rabbitmq://${connection.host}/${exchangeName}`;
     const responseAddress = `rabbitmq://${connection.host}/${options.responseExchange}`;
-    options.body = messageEnvelop(options.correlationId, fromAddress, responseAddress, toAddress,  options.message);
+
+    let faultAddress = null;
+    if (options.faultAddress) {
+      faultAddress =`rabbitmq://${connection.host}/${options.faultAddress}`;
+    }
+
+    options.body = messageEnvelop({
+      uniqueId: options.correlationId,
+      fromAddress,
+      toAddress,
+      responseAddress,
+      message: options.message,
+      faultAddress
+    });
   }
 
   return this.onExchange(exchangeName, connectionName)

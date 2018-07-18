@@ -7,6 +7,7 @@ const log = require('../log')('rabbot.queue');
 const format = require('util').format;
 const topLog = require('../log')('rabbot.topology');
 const unhandledLog = require('../log')('rabbot.unhandled');
+const messageEnvelop = require('../messageEnvelope');
 const noOp = function () {};
 
 /* log
@@ -119,23 +120,23 @@ function getNoBatchOps (channel, raw, messages, noAck) {
 }
 
 function getReply (channel, serializers, raw, replyQueue, connectionName) {
-  var position = 0;
+  let position = 0;
   return function (reply, options) {
-    var defaultReplyType = raw.type + '.reply';
-    var replyType = options ? (options.replyType || defaultReplyType) : defaultReplyType;
-    var contentType = getContentType(reply, options);
-    var serializer = serializers[ contentType ];
+    const defaultReplyType = raw.type + '.reply';
+    const replyType = options ? (options.replyType || defaultReplyType) : defaultReplyType;
+    const contentType = getContentType(reply, options);
+    const serializer = serializers[ contentType ];
     if (!serializer) {
-      var message = format('Failed to publish message with contentType %s - no serializer defined', contentType);
-      log.error(message);
-      return Promise.reject(new Error(message));
+      const msg = format('Failed to publish message with contentType %s - no serializer defined', contentType);
+      log.error(msg);
+      return Promise.reject(new Error(msg));
     }
-    var payload = serializer.serialize(reply);
-
-    var replyTo = raw.properties.replyTo;
+    const replyTo = raw.properties.replyTo;
+    const responseAddress = raw.body.responseAddress;
     raw.ack();
     if (replyTo) {
-      var publishOptions = {
+      const payload = serializer.serialize(reply);
+      const publishOptions = {
         type: replyType,
         contentType: contentType,
         contentEncoding: 'utf8',
@@ -164,7 +165,35 @@ function getReply (channel, serializers, raw, replyQueue, connectionName) {
       } else {
         return channel.sendToQueue(replyTo, payload, publishOptions);
       }
-    } else {
+    } else if (responseAddress) {
+      const fromAddress = raw.body.destinationAddress;
+      const message = messageEnvelop({
+        requestId: raw.body.requestId,
+        uniqueId: raw.properties.messageId,
+        conversationId:raw.body.conversationId,
+        fromAddress,
+        toAddress: responseAddress,
+        message: reply.message
+      });
+      const payload = serializer.serialize(message);
+
+      const publishOptions = {
+        contentType: 'application/vnd.masstransit+json',
+        contentEncoding: 'utf8',
+        timestamp: options && options.timestamp ? options.timestamp : Date.now(),
+        headers: options && options.headers ? options.headers : {}
+      };
+      log.debug("Replying to message %s on '%s' - '%s' with type '%s'",
+        raw.properties.messageId,
+        responseAddress,
+        connectionName,
+        publishOptions.type);
+      const string = responseAddress.replace(/^rabbitmq:\/\/.*\//g, '');
+      const index = string.indexOf('?');
+      const exchange = string.substring(0, index);
+      return channel.publish(exchange, '', payload, publishOptions);
+    }
+    else {
       return Promise.reject(new Error('Cannot reply to a message that has no return address'));
     }
   };
@@ -341,7 +370,7 @@ function subscribe (channelName, channel, topology, serializers, messages, optio
       log.warn("Queue '%s' was sent a consumer cancel notification");
       throw new Error('Broker cancelled the consumer remotely');
     }
-    var correlationId = raw.properties.correlationId;
+    var correlationId = raw.properties.correlationId? raw.properties.correlationId: raw.properties.messageId;
     var ops = getResolutionOperations(channel, raw, messages, options);
 
     raw.ack = ops.ack.bind(ops);
