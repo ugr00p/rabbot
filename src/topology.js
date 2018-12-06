@@ -95,6 +95,7 @@ var Topology = function (connection, options, serializers, unhandledStrategies, 
   connection.on('return', this.handleReturned.bind(this));
 
   this.createDefaultExchange().then(null, noop);
+  this.createReplyExchange().then(null, noop);
   // delay creation to allow for subscribers to attach a handler
   process.nextTick(() => {
     this.createReplyQueue().then(null, this.onReplyQueueFailed.bind(this));
@@ -126,6 +127,7 @@ Topology.prototype.configureBindings = function (bindingDef, list) {
           queueAlias: q ? q.name : undefined
         });
     });
+    bindings.push(this.createReplyQueueBinding());
     if (bindings.length === 0) {
       return Promise.resolve(true);
     } else {
@@ -152,6 +154,18 @@ Topology.prototype.configureExchanges = function (exchangeDef, list) {
     const exchanges = actualDefinitions.map((def) => this.createExchange(def));
     return Promise.all(exchanges);
   }
+};
+
+Topology.prototype.createReplyQueueBinding = function () {
+  const key = this.replyQueue.name;
+  return this.createBinding(
+    {
+      source: key,
+      target: key,
+      keys: [],
+      queue: true,
+      queueAlias: key
+    });
 };
 
 Topology.prototype.createBinding = function (options) {
@@ -224,6 +238,11 @@ Topology.prototype.createPrimitive = function (Primitive, primitiveType, options
 
 Topology.prototype.createDefaultExchange = function () {
   return this.createExchange({ name: '', passive: true });
+};
+
+Topology.prototype.createReplyExchange = function () {
+  const key = this.replyQueue.name;
+  return this.createExchange({ name: key, type: 'fanout' });
 };
 
 Topology.prototype.createExchange = function (options) {
@@ -322,6 +341,7 @@ Topology.prototype.onReconnect = function () {
 
   this.createReplyQueue().then(null, this.onReplyQueueFailed);
   this.createDefaultExchange().then(null, noop);
+  this.createReplyExchange().then(null, noop);
   const channelPromises = this.reconnectChannels();
   return Promise.all(channelPromises || [])
     .then(this.completeRebuild.bind(this));

@@ -425,9 +425,11 @@ Broker.prototype.publish = function (exchangeName, type, message, routingKey, co
       options.message.body.timeStamp = ts.toISOString();
     }
     const connection = this.connections[ connectionName ].options;
-    const fromAddress = `rabbitmq://${connection.host}/${connection.replyQueue.consumerTag}`;
+    const replyQueue = this.connections[ connectionName ].replyQueue;
+
+    const fromAddress = `rabbitmq://${connection.host}/${replyQueue.consumerTag}`;
     const toAddress = `rabbitmq://${connection.host}/${exchangeName}`;
-    const responseAddress = `rabbitmq://${connection.host}/${options.responseExchange}`;
+    const responseAddress = `rabbitmq://${connection.host}/${replyQueue.consumerTag}`;
 
     let faultAddress = null;
     if (options.faultAddress) {
