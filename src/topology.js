@@ -127,7 +127,11 @@ Topology.prototype.configureBindings = function (bindingDef, list) {
           queueAlias: q ? q.name : undefined
         });
     });
-    bindings.push(this.createReplyQueueBinding());
+
+    if(this.options.replyQueue === undefined) { // Only binding if AutoReply Exchange supplied.
+      bindings.push(this.createReplyQueueBinding());
+    }
+
     if (bindings.length === 0) {
       return Promise.resolve(true);
     } else {
@@ -241,8 +245,12 @@ Topology.prototype.createDefaultExchange = function () {
 };
 
 Topology.prototype.createReplyExchange = function () {
-  const key = this.replyQueue.name;
-  return this.createExchange({ name: key, type: 'fanout' });
+  if(this.options.replyQueue || this.options.replyQueue === false) {
+    return Promise.resolve();
+  } else {
+    const key = this.replyQueue.name;
+    return this.createExchange({ name: key, type: 'fanout' });
+  }
 };
 
 Topology.prototype.createExchange = function (options) {
