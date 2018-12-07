@@ -249,7 +249,7 @@ Topology.prototype.createReplyExchange = function () {
     return Promise.resolve();
   } else {
     const key = this.replyQueue.name;
-    return this.createExchange({ name: key, type: 'fanout' });
+    return this.createExchange({ name: key, type: 'fanout', autoDelete: true, durable:false });
   }
 };
 
