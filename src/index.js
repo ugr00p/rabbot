@@ -429,7 +429,11 @@ Broker.prototype.publish = function (exchangeName, type, message, routingKey, co
 
     const fromAddress = `rabbitmq://${connection.host}/${replyQueue.consumerTag}`;
     const toAddress = `rabbitmq://${connection.host}/${exchangeName}`;
-    const responseAddress = `rabbitmq://${connection.host}/${replyQueue.consumerTag}`;
+    let responseAddress = `rabbitmq://${connection.host}/${replyQueue.consumerTag}`;
+
+    if (options.autoDelete) {
+      responseAddress = `${responseAddress}?autodelete=true&durable=false`
+    }
 
     let faultAddress = null;
     if (options.faultAddress) {
