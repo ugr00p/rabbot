@@ -65,11 +65,11 @@
     "chai": "^4.1.2",
     "chai-as-promised": "^7.1.1",
     "coveralls": "^2.13.1",
-    "lodash": "4.17.x",
+    "lodash": "^4.17.11",
     "mocha": "^3.4.1",
     "mocha-lcov-reporter": "^1.3.0",
     "nyc": "^10.3.2",
-    "request": "^2.83.0",
+    "request": "^2.88.0",
     "semistandard": "^12.0.0",
     "sinon": "^4.0.2",
     "standard-version": "^4.3.0"
